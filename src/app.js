@@ -15,6 +15,8 @@ var HelloWorldLayer = cc.Layer.extend({
     startX: 0,
     startY: 0,
     currentPlayer: 'player',
+    gameInProgress: true,
+    score: 0,
 
     ctor: function () {
         this._super();
@@ -34,30 +36,39 @@ var HelloWorldLayer = cc.Layer.extend({
         this.initSprites();
         this.initGrid();
 
+        cc.audioEngine.playMusic("res/background_music.mp3", true);
+
         cc.eventManager.addListener({
             event: cc.EventListener.MOUSE,
             onMouseDown: this.processMouseDown.bind(this)
         }, this);
 
+        this.playerScoreLabel = new cc.LabelTTF("Score: " + this.score, "Arial", 24);
+        this.playerScoreLabel.attr({
+            x: cc.winSize.width - 100,
+            y: cc.winSize.height - 20
+        });
+        this.addChild(this.playerScoreLabel);
+        
         return true;
     },
 
     initSprites: function () {
-        // Initialize red team
-        this.createSprite("res/circle.png", cc.winSize.width / 2 - 110, cc.winSize.height / 2 + 270, 1, 'red');
-        this.createSprite("res/circle.png", cc.winSize.width / 2 - 160, cc.winSize.height / 2 + 270, 1, 'red');
-        this.createSprite("res/cross.png", cc.winSize.width / 2 - 60, cc.winSize.height / 2 + 270, 2, 'red');
+        // Initialize red team (AI)
+        this.createSprite("res/circle.png", cc.winSize.width / 2 - 145, cc.winSize.height / 2 + 270, 1, 'red');
+        this.createSprite("res/circle.png", cc.winSize.width / 2 - 145, cc.winSize.height / 2 + 270, 1, 'red');
         this.createSprite("res/cross.png", cc.winSize.width / 2 - 0, cc.winSize.height / 2 + 270, 2, 'red');
-        this.createSprite("res/triangle.png", cc.winSize.width / 2 + 100, cc.winSize.height / 2 + 270, 3, 'red');
-        this.createSprite("res/triangle.png", cc.winSize.width / 2 + 180, cc.winSize.height / 2 + 270, 3, 'red');
+        this.createSprite("res/cross.png", cc.winSize.width / 2 - 0, cc.winSize.height / 2 + 270, 2, 'red');
+        this.createSprite("res/triangle.png", cc.winSize.width / 2 + 145, cc.winSize.height / 2 + 270, 3, 'red');
+        this.createSprite("res/triangle.png", cc.winSize.width / 2 + 145, cc.winSize.height / 2 + 270, 3, 'red');
 
-        // Initialize blue team
-        this.createSprite("res/blue_circle.png", cc.winSize.width / 2 - 150, cc.winSize.height / 2 - 270, 1, 'blue');
-        this.createSprite("res/blue_circle.png", cc.winSize.width / 2 - 100, cc.winSize.height / 2 - 270, 1, 'blue');
-        this.createSprite("res/blue_cross.png", cc.winSize.width / 2 + 70, cc.winSize.height / 2 - 270, 2, 'blue');
-        this.createSprite("res/blue_cross.png", cc.winSize.width / 2 - 10, cc.winSize.height / 2 - 270, 2, 'blue');
-        this.createSprite("res/blue_triangle.png", cc.winSize.width / 2 + 140, cc.winSize.height / 2 - 270, 3, 'blue');
-        this.createSprite("res/blue_triangle.png", cc.winSize.width / 2 + 240, cc.winSize.height / 2 - 270, 3, 'blue');
+        // Initialize blue team (player)
+        this.createSprite("res/blue_circle.png", cc.winSize.width / 2 - 145, cc.winSize.height / 2 - 270, 1, 'blue');
+        this.createSprite("res/blue_circle.png", cc.winSize.width / 2 - 145, cc.winSize.height / 2 - 270, 1, 'blue');
+        this.createSprite("res/blue_cross.png", cc.winSize.width / 2 + 0, cc.winSize.height / 2 - 270, 2, 'blue');
+        this.createSprite("res/blue_cross.png", cc.winSize.width / 2 + 0, cc.winSize.height / 2 - 270, 2, 'blue');
+        this.createSprite("res/blue_triangle.png", cc.winSize.width / 2 + 145, cc.winSize.height / 2 - 270, 3, 'blue');
+        this.createSprite("res/blue_triangle.png", cc.winSize.width / 2 + 145, cc.winSize.height / 2 - 270, 3, 'blue');
     },
 
     createSprite: function (img, x, y, value, team) {
@@ -74,7 +85,7 @@ var HelloWorldLayer = cc.Layer.extend({
 
     initGrid: function () {
         // Calculate the size of each cell
-        var gridWidth = cc.winSize.width - this.gap * 4;
+        var gridWidth = cc.winSize.width - this.gap * 38;
         var gridHeight = cc.winSize.height - this.gap * 4;
         this.cellSize = Math.min(gridWidth, gridHeight) / 3;
 
@@ -95,7 +106,10 @@ var HelloWorldLayer = cc.Layer.extend({
     },
 
     processMouseDown: function (event) {
+        if (!this.gameInProgress) return;
+
         var location = event.getLocation();
+        cc.audioEngine.playEffect("res/click.mp3");
 
         if (this.currentPlayer === 'player') {
             if (this.selectedSprite) {
@@ -123,18 +137,21 @@ var HelloWorldLayer = cc.Layer.extend({
                         this.selectedSprite.isLocked = true;
                         this.selectedSprite.setColor(cc.color(255, 255, 255)); // Remove highlight
                         this.checkForWin(this.selectedSprite);
+                        this.checkForDraw(); 
+                        cc.audioEngine.playEffect("res/correct.mp3");
                         this.selectedSprite = null;
                         this.currentPlayer = 'ai'; // Switch to AI turn
-                        this.aiMove();
+                        this.scheduleOnce(this.aiMove.bind(this), 1); // AI move with cooldown of 1 second
                     } else {
                         this.selectedSprite.setColor(cc.color(255, 255, 255)); // Remove highlight
                         this.selectedSprite = null;
+                        cc.audioEngine.playEffect("res/wrong.mp3");
                     }
                 }
             } else {
                 // Select a sprite if not already selected
                 for (var i = 0; i < this.sprites.length; i++) {
-                    if (cc.rectContainsPoint(this.sprites[i].getBoundingBox(), location) && !this.sprites[i].isLocked) {
+                    if (cc.rectContainsPoint(this.sprites[i].getBoundingBox(), location) && !this.sprites[i].isLocked && this.sprites[i].team === 'blue') {
                         this.selectedSprite = this.sprites[i];
                         this.selectedSprite.setColor(cc.color(255, 255, 0)); // Highlight selected sprite
                         break;
@@ -146,52 +163,68 @@ var HelloWorldLayer = cc.Layer.extend({
 
     checkForWin: function (sprite) {
         var team = sprite.team;
-        // Check horizontal lines
         for (var i = 0; i < 3; i++) {
             if (this.grid[i][0] && this.grid[i][0].team === team &&
                 this.grid[i][1] && this.grid[i][1].team === team &&
                 this.grid[i][2] && this.grid[i][2].team === team) {
-                this.showWinMessage(team + " wins!");
+                this.showWinMessage(team === 'blue' ? "Ты выиграл" : "Ты проиграл", team);
                 return;
             }
         }
-        // Check vertical lines
         for (var i = 0; i < 3; i++) {
             if (this.grid[0][i] && this.grid[0][i].team === team &&
                 this.grid[1][i] && this.grid[1][i].team === team &&
                 this.grid[2][i] && this.grid[2][i].team === team) {
-                this.showWinMessage(team + " wins!");
+                this.showWinMessage(team === 'blue' ? "Ты выиграл" : "Ты проиграл", team);
                 return;
             }
         }
-        // Check diagonals
         if ((this.grid[0][0] && this.grid[0][0].team === team && this.grid[1][1] && this.grid[1][1].team === team && this.grid[2][2] && this.grid[2][2].team === team) ||
             (this.grid[0][2] && this.grid[0][2].team === team && this.grid[1][1] && this.grid[1][1].team === team && this.grid[2][0] && this.grid[2][0].team === team)) {
-            this.showWinMessage(team + " wins!");
+            this.showWinMessage(team === 'blue' ? "Ты выиграл" : "Ты проиграл", team);
             return;
         }
     },
 
-    showWinMessage: function (message) {
-        var size = cc.winSize;
-        var winLayer = new cc.LayerColor(cc.color(0, 0, 0, 180), size.width, size.height);
-        var label = new cc.LabelTTF(message, "Arial", 38);
-        label.attr({
-            x: size.width / 2,
-            y: size.height / 2
-        });
-        winLayer.addChild(label);
-        this.addChild(winLayer);
+    showWinMessage: function (message, winningTeam) {
+    this.gameInProgress = false;
 
-        // Restart the game after 3 seconds
-        this.scheduleOnce(this.restartGame, 3);
-    },
+    var size = cc.winSize;
+    var winLayer = new cc.LayerColor(cc.color(0, 0, 0, 180), size.width, size.height);
+    var label = new cc.LabelTTF(message, "Arial", 38);
+    label.attr({
+        x: size.width / 2,
+        y: size.height / 2
+    });
+    winLayer.addChild(label);
+    this.addChild(winLayer);
+
+    switch (winningTeam) {
+        case 'red':
+            cc.audioEngine.playEffect("res/lose_sound.mp3");
+            this.score + 100;
+            this.updatePlayerScoreLabel();
+            break;
+        case 'blue':
+            cc.audioEngine.playEffect("res/victory.mp3");
+            break;
+    }
+
+    // Restart the game after 3 seconds
+    this.scheduleOnce(this.restartGame, 3);
+},
+
+updatePlayerScoreLabel: function () {
+    this.playerScoreLabel.setString("Score: " + this.score);
+},
 
     restartGame: function () {
         cc.director.runScene(new HelloWorldScene());
     },
 
     aiMove: function () {
+        if (!this.gameInProgress) return;
+
         var bestMove = this.findBestMove();
         if (bestMove) {
             var aiSprite = this.getAISprite(bestMove);
@@ -209,10 +242,12 @@ var HelloWorldLayer = cc.Layer.extend({
                 }
                 aiSprite.x = this.startX + bestMove.x * (this.cellSize + this.gap) + this.cellSize / 2;
                 aiSprite.y = this.startY + bestMove.y * (this.cellSize + this.gap) + this.cellSize / 2;
-                this.grid[bestMove.y][bestMove.x] = { team: 'blue', value: aiSprite.value };
+                this.grid[bestMove.y][bestMove.x] = { team: 'red', value: aiSprite.value };
                 aiSprite.isLocked = true;
                 this.checkForWin(aiSprite);
+                this.checkForDraw(); 
                 this.currentPlayer = 'player';
+                cc.audioEngine.playEffect("res/enemy_correct.mp3");
             }
         }
     },
@@ -220,7 +255,7 @@ var HelloWorldLayer = cc.Layer.extend({
     findBestMove: function () {
         for (var y = 0; y < 3; y++) {
             for (var x = 0; x < 3; x++) {
-                if (!this.grid[y][x] || (this.grid[y][x].team !== 'blue' && this.grid[y][x].value < 3)) {
+                if (!this.grid[y][x] || (this.grid[y][x].team !== 'red' && this.grid[y][x].value < 3)) {
                     return { x: x, y: y };
                 }
             }
@@ -230,12 +265,53 @@ var HelloWorldLayer = cc.Layer.extend({
 
     getAISprite: function (bestMove) {
         for (var i = 0; i < this.sprites.length; i++) {
-            if (this.sprites[i].team === 'blue' && !this.sprites[i].isLocked) {
+            if (this.sprites[i].team === 'red' && !this.sprites[i].isLocked) {
                 if (!this.grid[bestMove.y][bestMove.x] || this.grid[bestMove.y][bestMove.x].value < this.sprites[i].value) {
                     return this.sprites[i];
                 }
             }
         }
         return null;
-    }
+    },
+
+    checkForDraw: function () {
+        var isDraw = true;
+        for (var i = 0; i < 3; i++) {
+            for (var j = 0; j < 3; j++) {
+                if (!this.grid[i][j]) {
+                    isDraw = false;
+                    break;
+                }
+            }
+        }
+        if (isDraw) {
+            this.showDrawMessage();
+        }
+    },
+    
+    showDrawMessage: function () {
+        this.gameInProgress = false;
+    
+        var size = cc.winSize;
+        var drawLayer = new cc.LayerColor(cc.color(0, 0, 0, 180), size.width, size.height);
+        var label = new cc.LabelTTF("Ничья", "Arial", 38);
+        label.attr({
+            x: size.width / 2,
+            y: size.height / 2
+        });
+        drawLayer.addChild(label);
+        this.addChild(drawLayer);
+    
+        // Restart the game after 3 seconds
+        this.scheduleOnce(this.restartGame, 3);
+    },
+    
 });
+
+cc.game.onStart = function () {
+    cc.LoaderScene.preload(["res/click.mp3", "res/victory.mp3", "res/lose_sound.mp3", "res/background_music.mp3", "res/background.png", "res/circle.png", "res/cross.png", "res/triangle.png", "res/blue_circle.png", "res/blue_cross.png", "res/blue_triangle.png", "res/cell.png"], function () {
+        cc.director.runScene(new HelloWorldScene());
+    }, this);
+};
+
+cc.game.run("gameCanvas");

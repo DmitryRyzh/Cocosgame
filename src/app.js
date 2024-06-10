@@ -104,18 +104,54 @@ var HelloWorldLayer = cc.Layer.extend({
             }
         }
     },
-
+    moveSprite: function (sprite, x, y) {
+        var targetX = this.startX + x * (this.cellSize + this.gap) + this.cellSize / 2;
+        var targetY = this.startY + y * (this.cellSize + this.gap) + this.cellSize / 2;
+        var moveAction = cc.moveTo(0.5, cc.p(targetX, targetY)); // Duration can be adjusted as needed
+        sprite.runAction(moveAction);
+    },
+    
+    aiMove: function () {
+        if (!this.gameInProgress) return;
+    
+        var bestMove = this.findBestMove();
+        if (bestMove) {
+            var aiSprite = this.getAISprite(bestMove);
+            if (aiSprite) {
+                if (this.grid[bestMove.y][bestMove.x]) {
+                    // Remove the covered sprite if any
+                    for (var i = 0; i < this.sprites.length; i++) {
+                        if (this.sprites[i].x === this.startX + bestMove.x * (this.cellSize + this.gap) + this.cellSize / 2 &&
+                            this.sprites[i].y === this.startY + bestMove.y * (this.cellSize + this.gap) + this.cellSize / 2) {
+                            this.removeChild(this.sprites[i]);
+                            this.sprites.splice(i, 1);
+                            break;
+                        }
+                    }
+                }
+                // Move the AI sprite to the new position
+                this.moveSprite(aiSprite, bestMove.x, bestMove.y); 
+                this.grid[bestMove.y][bestMove.x] = { team: 'red', value: aiSprite.value };
+                aiSprite.isLocked = true;
+                this.checkForWin(aiSprite);
+                this.checkForDraw(); 
+                this.currentPlayer = 'player';
+                cc.audioEngine.playEffect("res/enemy_correct.mp3");
+            }
+        }
+    },
+    
     processMouseDown: function (event) {
         if (!this.gameInProgress) return;
-
+    
         var location = event.getLocation();
         cc.audioEngine.playEffect("res/click.mp3");
-
+    
         if (this.currentPlayer === 'player') {
             if (this.selectedSprite) {
                 var x = Math.floor((location.x - this.startX) / (this.cellSize + this.gap));
                 var y = Math.floor((location.y - this.startY) / (this.cellSize + this.gap));
-
+    
                 if (x >= 0 && x < 3 && y >= 0 && y < 3) {
                     if (!this.grid[y][x] || this.grid[y][x].value < this.selectedSprite.value) {
                         // Remove the covered sprite if any
@@ -129,11 +165,10 @@ var HelloWorldLayer = cc.Layer.extend({
                                 }
                             }
                         }
-
+    
                         // Update grid and place the selected sprite
                         this.grid[y][x] = { team: this.selectedSprite.team, value: this.selectedSprite.value };
-                        this.selectedSprite.x = this.startX + x * (this.cellSize + this.gap) + this.cellSize / 2;
-                        this.selectedSprite.y = this.startY + y * (this.cellSize + this.gap) + this.cellSize / 2;
+                        this.moveSprite(this.selectedSprite, x, y); // Move the sprite to the new position
                         this.selectedSprite.isLocked = true;
                         this.selectedSprite.setColor(cc.color(255, 255, 255)); // Remove highlight
                         this.checkForWin(this.selectedSprite);
@@ -147,6 +182,7 @@ var HelloWorldLayer = cc.Layer.extend({
                         this.selectedSprite = null;
                         cc.audioEngine.playEffect("res/wrong.mp3");
                     }
+                    
                 }
             } else {
                 // Select a sprite if not already selected
@@ -160,7 +196,7 @@ var HelloWorldLayer = cc.Layer.extend({
             }
         }
     },
-
+    
     checkForWin: function (sprite) {
         var team = sprite.team;
         for (var i = 0; i < 3; i++) {
@@ -220,36 +256,6 @@ updatePlayerScoreLabel: function () {
 
     restartGame: function () {
         cc.director.runScene(new HelloWorldScene());
-    },
-
-    aiMove: function () {
-        if (!this.gameInProgress) return;
-
-        var bestMove = this.findBestMove();
-        if (bestMove) {
-            var aiSprite = this.getAISprite(bestMove);
-            if (aiSprite) {
-                if (this.grid[bestMove.y][bestMove.x]) {
-                    // Remove the covered sprite if any
-                    for (var i = 0; i < this.sprites.length; i++) {
-                        if (this.sprites[i].x === this.startX + bestMove.x * (this.cellSize + this.gap) + this.cellSize / 2 &&
-                            this.sprites[i].y === this.startY + bestMove.y * (this.cellSize + this.gap) + this.cellSize / 2) {
-                            this.removeChild(this.sprites[i]);
-                            this.sprites.splice(i, 1);
-                            break;
-                        }
-                    }
-                }
-                aiSprite.x = this.startX + bestMove.x * (this.cellSize + this.gap) + this.cellSize / 2;
-                aiSprite.y = this.startY + bestMove.y * (this.cellSize + this.gap) + this.cellSize / 2;
-                this.grid[bestMove.y][bestMove.x] = { team: 'red', value: aiSprite.value };
-                aiSprite.isLocked = true;
-                this.checkForWin(aiSprite);
-                this.checkForDraw(); 
-                this.currentPlayer = 'player';
-                cc.audioEngine.playEffect("res/enemy_correct.mp3");
-            }
-        }
     },
 
     findBestMove: function () {

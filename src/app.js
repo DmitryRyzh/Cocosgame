@@ -16,7 +16,6 @@ var HelloWorldLayer = cc.Layer.extend({
     startY: 0,
     currentPlayer: 'player',
     gameInProgress: true,
-    score: 0,
 
     ctor: function () {
         this._super();
@@ -43,13 +42,6 @@ var HelloWorldLayer = cc.Layer.extend({
             onMouseDown: this.processMouseDown.bind(this)
         }, this);
 
-        this.playerScoreLabel = new cc.LabelTTF("Score: " + this.score, "Arial", 24);
-        this.playerScoreLabel.attr({
-            x: cc.winSize.width - 100,
-            y: cc.winSize.height - 20
-        });
-        this.addChild(this.playerScoreLabel);
-        
         return true;
     },
 
@@ -104,75 +96,34 @@ var HelloWorldLayer = cc.Layer.extend({
             }
         }
     },
-    moveSprite: function (sprite, x, y) {
-        var targetX = this.startX + x * (this.cellSize + this.gap) + this.cellSize / 2;
-        var targetY = this.startY + y * (this.cellSize + this.gap) + this.cellSize / 2;
-        var moveAction = cc.moveTo(0.5, cc.p(targetX, targetY)); // Duration can be adjusted as needed
-        sprite.runAction(moveAction);
-    },
-    
-    aiMove: function () {
-        if (!this.gameInProgress) return;
-    
-        var bestMove = this.findBestMove();
-        if (bestMove) {
-            var aiSprite = this.getAISprite(bestMove);
-            if (aiSprite) {
-                if (this.grid[bestMove.y][bestMove.x]) {
-                    // Remove the covered sprite if any
-                    for (var i = 0; i < this.sprites.length; i++) {
-                        if (this.sprites[i].x === this.startX + bestMove.x * (this.cellSize + this.gap) + this.cellSize / 2 &&
-                            this.sprites[i].y === this.startY + bestMove.y * (this.cellSize + this.gap) + this.cellSize / 2) {
-                            this.removeChild(this.sprites[i]);
-                            this.sprites.splice(i, 1);
-                            break;
-                        }
-                    }
-                }
-                // Move the AI sprite to the new position
-                this.moveSprite(aiSprite, bestMove.x, bestMove.y); 
-                this.grid[bestMove.y][bestMove.x] = { team: 'red', value: aiSprite.value };
-                aiSprite.isLocked = true;
-                this.checkForWin(aiSprite);
-                this.checkForDraw(); 
-                this.currentPlayer = 'player';
-                cc.audioEngine.playEffect("res/enemy_correct.mp3");
-            }
-        }
-    },
-    
+
     processMouseDown: function (event) {
         if (!this.gameInProgress) return;
-    
+
         var location = event.getLocation();
         cc.audioEngine.playEffect("res/click.mp3");
-    
+
         if (this.currentPlayer === 'player') {
             if (this.selectedSprite) {
                 var x = Math.floor((location.x - this.startX) / (this.cellSize + this.gap));
                 var y = Math.floor((location.y - this.startY) / (this.cellSize + this.gap));
-    
+
                 if (x >= 0 && x < 3 && y >= 0 && y < 3) {
                     if (!this.grid[y][x] || this.grid[y][x].value < this.selectedSprite.value) {
                         // Remove the covered sprite if any
-                        if (this.grid[y][x]) {
-                            for (var i = 0; i < this.sprites.length; i++) {
-                                if (this.sprites[i].x === this.startX + x * (this.cellSize + this.gap) + this.cellSize / 2 &&
-                                    this.sprites[i].y === this.startY + y * (this.cellSize + this.gap) + this.cellSize / 2) {
-                                    this.removeChild(this.sprites[i]);
-                                    this.sprites.splice(i, 1);
-                                    break;
-                                }
-                            }
-                        }
-    
+                        this.removeCoveredSprite(x, y);
+
                         // Update grid and place the selected sprite
                         this.grid[y][x] = { team: this.selectedSprite.team, value: this.selectedSprite.value };
-                        this.moveSprite(this.selectedSprite, x, y); // Move the sprite to the new position
+
+                        // Animate the sprite movement
+                        var moveAction = cc.moveTo(0.5, cc.p(this.startX + x * (this.cellSize + this.gap) + this.cellSize / 2, this.startY + y * (this.cellSize + this.gap) + this.cellSize / 2)).easing(cc.easeCubicActionOut());
+                        this.selectedSprite.runAction(moveAction);
+
                         this.selectedSprite.isLocked = true;
                         this.selectedSprite.setColor(cc.color(255, 255, 255)); // Remove highlight
                         this.checkForWin(this.selectedSprite);
-                        this.checkForDraw(); 
+                        this.checkForDraw();
                         cc.audioEngine.playEffect("res/correct.mp3");
                         this.selectedSprite = null;
                         this.currentPlayer = 'ai'; // Switch to AI turn
@@ -196,7 +147,7 @@ var HelloWorldLayer = cc.Layer.extend({
             }
         }
     },
-    
+
     checkForWin: function (sprite) {
         var team = sprite.team;
         for (var i = 0; i < 3; i++) {
@@ -218,44 +169,51 @@ var HelloWorldLayer = cc.Layer.extend({
         if ((this.grid[0][0] && this.grid[0][0].team === team && this.grid[1][1] && this.grid[1][1].team === team && this.grid[2][2] && this.grid[2][2].team === team) ||
             (this.grid[0][2] && this.grid[0][2].team === team && this.grid[1][1] && this.grid[1][1].team === team && this.grid[2][0] && this.grid[2][0].team === team)) {
             this.showWinMessage(team === 'blue' ? "Ты выиграл" : "Ты проиграл", team);
-            return;
         }
     },
 
     showWinMessage: function (message, winningTeam) {
-    this.gameInProgress = false;
+        this.gameInProgress = false;
+        var size = cc.winSize;
+        var winLayer = new cc.LayerColor(cc.color(0, 0, 0, 180), size.width, size.height);
+        var label = new cc.LabelTTF(message, "Arial", 38);
+        label.attr({
+            x: size.width / 2,
+            y: size.height / 2
+        });
+        winLayer.addChild(label);
+        this.addChild(winLayer);
+        cc.audioEngine.playEffect(winningTeam === 'blue' ? "res/victory.mp3" : "res/lose_sound.mp3");
 
-    var size = cc.winSize;
-    var winLayer = new cc.LayerColor(cc.color(0, 0, 0, 180), size.width, size.height);
-    var label = new cc.LabelTTF(message, "Arial", 38);
-    label.attr({
-        x: size.width / 2,
-        y: size.height / 2
-    });
-    winLayer.addChild(label);
-    this.addChild(winLayer);
-
-    switch (winningTeam) {
-        case 'red':
-            cc.audioEngine.playEffect("res/lose_sound.mp3");
-            this.score + 100;
-            this.updatePlayerScoreLabel();
-            break;
-        case 'blue':
-            cc.audioEngine.playEffect("res/victory.mp3");
-            break;
-    }
-
-    // Restart the game after 3 seconds
-    this.scheduleOnce(this.restartGame, 3);
-},
-
-updatePlayerScoreLabel: function () {
-    this.playerScoreLabel.setString("Score: " + this.score);
-},
+        // Restart the game after 3 seconds
+        this.scheduleOnce(this.restartGame, 3);
+    },
 
     restartGame: function () {
         cc.director.runScene(new HelloWorldScene());
+    },
+
+    aiMove: function () {
+        if (!this.gameInProgress) return;
+
+        var bestMove = this.findBestMove();
+        if (bestMove) {
+            var aiSprite = this.getAISprite(bestMove);
+            if (aiSprite) {
+                // Remove the covered sprite if any
+                this.removeCoveredSprite(bestMove.x, bestMove.y);
+
+                // Update grid and place the AI sprite
+                var moveAction = cc.moveTo(0.5, cc.p(this.startX + bestMove.x * (this.cellSize + this.gap) + this.cellSize / 2, this.startY + bestMove.y * (this.cellSize + this.gap) + this.cellSize / 2)).easing(cc.easeCubicActionOut());
+                aiSprite.runAction(moveAction);
+                this.grid[bestMove.y][bestMove.x] = { team: 'red', value: aiSprite.value };
+                aiSprite.isLocked = true;
+                this.checkForWin(aiSprite);
+                this.checkForDraw();
+                this.currentPlayer = 'player';
+                cc.audioEngine.playEffect("res/enemy_correct.mp3");
+            }
+        }
     },
 
     findBestMove: function () {
@@ -294,10 +252,9 @@ updatePlayerScoreLabel: function () {
             this.showDrawMessage();
         }
     },
-    
+
     showDrawMessage: function () {
         this.gameInProgress = false;
-    
         var size = cc.winSize;
         var drawLayer = new cc.LayerColor(cc.color(0, 0, 0, 180), size.width, size.height);
         var label = new cc.LabelTTF("Ничья", "Arial", 38);
@@ -307,15 +264,33 @@ updatePlayerScoreLabel: function () {
         });
         drawLayer.addChild(label);
         this.addChild(drawLayer);
-    
+
         // Restart the game after 3 seconds
         this.scheduleOnce(this.restartGame, 3);
     },
+
+    removeCoveredSprite: function (x, y) {
+        var targetX = this.startX + x * (this.cellSize + this.gap) + this.cellSize / 2;
+        var targetY = this.startY + y * (this.cellSize + this.gap) + this.cellSize / 2;
+        
+        for (var i = 0; i < this.sprites.length; i++) {
+            var sprite = this.sprites[i];
+            if (Math.abs(sprite.x - targetX) < 1 && Math.abs(sprite.y - targetY) < 1) {
+                this.removeChild(sprite);
+                this.sprites.splice(i, 1);
+                break;
+            }
+        }
+    }
     
 });
 
 cc.game.onStart = function () {
-    cc.LoaderScene.preload(["res/click.mp3", "res/victory.mp3", "res/lose_sound.mp3", "res/background_music.mp3", "res/background.png", "res/circle.png", "res/cross.png", "res/triangle.png", "res/blue_circle.png", "res/blue_cross.png", "res/blue_triangle.png", "res/cell.png"], function () {
+    cc.LoaderScene.preload([
+        "res/click.mp3", "res/victory.mp3", "res/lose_sound.mp3", "res/background_music.mp3",
+        "res/background.png", "res/circle.png", "res/cross.png", "res/triangle.png",
+        "res/blue_circle.png", "res/blue_cross.png", "res/blue_triangle.png", "res/cell.png"
+    ], function () {
         cc.director.runScene(new HelloWorldScene());
     }, this);
 };

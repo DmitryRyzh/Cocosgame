@@ -146,6 +146,7 @@ var HelloWorldLayer = cc.Layer.extend({
             }
         }
     },
+
     checkForWin: function (sprite) {
         var team = sprite.team;
         for (var i = 0; i < 3; i++) {
@@ -216,112 +217,14 @@ var HelloWorldLayer = cc.Layer.extend({
             },
         
             findBestMove: function () {
-                var bestMove = null;
-                var bestValue = -Infinity;
-                var depthLimit = 5; // You can adjust this value
-            
                 for (var y = 0; y < 3; y++) {
                     for (var x = 0; x < 3; x++) {
                         if (!this.grid[y][x] || (this.grid[y][x].team !== 'red' && this.grid[y][x].value < 3)) {
-                            var currentMove = { x: x, y: y };
-                            var currentValue = this.minimax(currentMove, 0, false, depthLimit);
-            
-                            if (currentValue > bestValue) {
-                                bestMove = currentMove;
-                                bestValue = currentValue;
-                            }
+                            return { x: x, y: y };
                         }
                     }
                 }
-                return bestMove;
-            },
-            
-            
-            minimax: function (move, depth, isMaximizing, depthLimit) {
-                if (depth >= depthLimit) {
-                    return this.evaluateBoard();
-                }
-            
-                var originalValue = this.grid[move.y][move.x] ? this.grid[move.y][move.x].value : null;
-                this.grid[move.y][move.x] = { team: isMaximizing ? 'red' : 'blue', value: 3 }; // Assume max value for simplicity
-            
-                var score = this.evaluateBoard();
-                this.grid[move.y][move.x] = originalValue !== null ? { team: isMaximizing ? 'red' : 'blue', value: originalValue } : null;
-            
-                if (score === 10) return score - depth;
-                if (score === -10) return score + depth;
-                if (this.isBoardFull()) return 0;
-            
-                if (isMaximizing) {
-                    var best = -Infinity;
-                    for (var y = 0; y < 3; y++) {
-                        for (var x = 0; x < 3; x++) {
-                            if (!this.grid[y][x] || (this.grid[y][x].team !== 'red' && this.grid[y][x].value < 3)) {
-                                best = Math.max(best, this.minimax({ x: x, y: y }, depth + 1, !isMaximizing, depthLimit));
-                            }
-                        }
-                    }
-                    return best;
-                } else {
-                    var best = Infinity;
-                    for (var y = 0; y < 3; y++) {
-                        for (var x = 0; x < 3; x++) {
-                            if (!this.grid[y][x] || (this.grid[y][x].team !== 'blue' && this.grid[y][x].value < 3)) {
-                                best = Math.min(best, this.minimax({ x: x, y: y }, depth + 1, !isMaximizing, depthLimit));
-                            }
-                        }
-                    }
-                    return best;
-                }
-            },
-            
-            evaluateBoard: function () {
-                // Check rows, columns, and diagonals for win conditions and piece values
-                var score = 0;
-                for (var i = 0; i < 3; i++) {
-                    score += this.evaluateLine(this.grid[i][0], this.grid[i][1], this.grid[i][2]);
-                    score += this.evaluateLine(this.grid[0][i], this.grid[1][i], this.grid[2][i]);
-                }
-                score += this.evaluateLine(this.grid[0][0], this.grid[1][1], this.grid[2][2]);
-                score += this.evaluateLine(this.grid[0][2], this.grid[1][1], this.grid[2][0]);
-            
-                return score;
-            },
-            
-            evaluateLine: function (cell1, cell2, cell3) {
-                var score = 0;
-            
-                // Line with all red (AI)
-                if (cell1 && cell1.team === 'red' && cell2 && cell2.team === 'red' && cell3 && cell3.team === 'red') {
-                    score += 10;
-                }
-            
-                // Line with all blue (Player)
-                if (cell1 && cell1.team === 'blue' && cell2 && cell2.team === 'blue' && cell3 && cell3.team === 'blue') {
-                    score -= 10;
-                }
-            
-                // Evaluate individual cells
-                var cells = [cell1, cell2, cell3];
-                for (var cell of cells) {
-                    if (cell && cell.team === 'red') {
-                        score += cell.value;
-                    }
-                    if (cell && cell.team === 'blue') {
-                        score -= cell.value;
-                    }
-                }
-            
-                return score;
-            },
-            
-            isBoardFull: function () {
-                for (var y = 0; y < 3; y++) {
-                    for (var x = 0; x < 3; x++) {
-                        if (!this.grid[y][x]) return false;
-                    }
-                }
-                return true;
+                return null;
             },
         
             getAISprite: function (bestMove) {

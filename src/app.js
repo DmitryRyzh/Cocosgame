@@ -46,7 +46,7 @@ var HelloWorldLayer = cc.Layer.extend({
     },
 
     initSprites: function () {
-        // Initialize red team (AI)
+        
         this.createSprite("res/circle.png", cc.winSize.width / 2 - 145, cc.winSize.height / 2 + 270, 1, 'red');
         this.createSprite("res/circle.png", cc.winSize.width / 2 - 145, cc.winSize.height / 2 + 270, 1, 'red');
         this.createSprite("res/cross.png", cc.winSize.width / 2 - 0, cc.winSize.height / 2 + 270, 2, 'red');
@@ -54,7 +54,7 @@ var HelloWorldLayer = cc.Layer.extend({
         this.createSprite("res/triangle.png", cc.winSize.width / 2 + 145, cc.winSize.height / 2 + 270, 3, 'red');
         this.createSprite("res/triangle.png", cc.winSize.width / 2 + 145, cc.winSize.height / 2 + 270, 3, 'red');
 
-        // Initialize blue team (player)
+       
         this.createSprite("res/blue_circle.png", cc.winSize.width / 2 - 145, cc.winSize.height / 2 - 270, 1, 'blue');
         this.createSprite("res/blue_circle.png", cc.winSize.width / 2 - 145, cc.winSize.height / 2 - 270, 1, 'blue');
         this.createSprite("res/blue_cross.png", cc.winSize.width / 2 + 0, cc.winSize.height / 2 - 270, 2, 'blue');
@@ -76,7 +76,7 @@ var HelloWorldLayer = cc.Layer.extend({
     },
 
     initGrid: function () {
-        // Calculate the size of each cell
+       
         var gridWidth = cc.winSize.width - this.gap * 38;
         var gridHeight = cc.winSize.height - this.gap * 4;
         this.cellSize = Math.min(gridWidth, gridHeight) / 3;
@@ -110,37 +110,36 @@ var HelloWorldLayer = cc.Layer.extend({
     
                 if (x >= 0 && x < 3 && y >= 0 && y < 3) {
                     if (!this.grid[y][x] || this.grid[y][x].value < this.selectedSprite.value) {
-                        // Animate the covering of the sprite
+                     
                         this.animateCoverSprite(x, y, this.selectedSprite);
     
-                        // Update grid and place the selected sprite
+                       
                         this.grid[y][x] = { team: this.selectedSprite.team, value: this.selectedSprite.value };
     
-                        // Animate the sprite movement with easing
+                       
                         var moveAction = cc.moveTo(0.5, cc.p(this.startX + x * (this.cellSize + this.gap) + this.cellSize / 2, this.startY + y * (this.cellSize + this.gap) + this.cellSize / 2)).easing(cc.easeInOut(2));
                         this.selectedSprite.runAction(moveAction);
     
                         this.selectedSprite.isLocked = true;
-                        this.selectedSprite.setColor(cc.color(255, 255, 255)); // Remove highlight
+                        this.selectedSprite.setColor(cc.color(255, 255, 255)); 
                         this.checkForWin(this.selectedSprite);
                         this.checkForDraw();
                         cc.audioEngine.playEffect("res/correct.mp3");
                         this.selectedSprite = null;
-                        this.currentPlayer = 'ai'; // Switch to AI turn
-                        this.scheduleOnce(this.aiMove.bind(this), 1); // AI move with cooldown of 1 second
+                        this.currentPlayer = 'ai'; 
+                        this.scheduleOnce(this.aiMove.bind(this), 1); 
                     } else {
-                        this.selectedSprite.setColor(cc.color(255, 255, 255)); // Remove highlight
+                        this.selectedSprite.setColor(cc.color(255, 255, 255)); 
                         this.selectedSprite = null;
                         cc.audioEngine.playEffect("res/wrong.mp3");
                     }
                 }
             } else {
-                // Select a sprite if not already selected
+               
                 for (var i = 0; i < this.sprites.length; i++) {
                     if (cc.rectContainsPoint(this.sprites[i].getBoundingBox(), location) && !this.sprites[i].isLocked && this.sprites[i].team === 'blue') {
                         this.selectedSprite = this.sprites[i];
-                        this.selectedSprite.setColor(cc.color(255, 255, 0)); // Highlight selected sprite
-                        break;
+                        this.selectedSprite.setColor(cc.color(255, 255, 0)); 
                     }
                 }
             }
@@ -184,7 +183,7 @@ var HelloWorldLayer = cc.Layer.extend({
                 this.addChild(winLayer);
                 cc.audioEngine.playEffect(winningTeam === 'blue' ? "res/victory.mp3" : "res/lose_sound.mp3");
         
-                // Restart the game after 3 seconds
+                
                 this.scheduleOnce(this.restartGame, 3);
             },
         
@@ -199,10 +198,10 @@ var HelloWorldLayer = cc.Layer.extend({
                 if (bestMove) {
                     var aiSprite = this.getAISprite(bestMove);
                     if (aiSprite) {
-                        // Animate the covering of the sprite
+                       
                         this.animateCoverSprite(bestMove.x, bestMove.y, aiSprite);
             
-                        // Update grid and place the AI sprite
+                     
                         var moveAction = cc.moveTo(0.5, cc.p(this.startX + bestMove.x * (this.cellSize + this.gap) + this.cellSize / 2, this.startY + bestMove.y * (this.cellSize + this.gap) + this.cellSize / 2)).easing(cc.easeInOut(2));
                         aiSprite.runAction(moveAction);
                         this.grid[bestMove.y][bestMove.x] = { team: 'red', value: aiSprite.value };
@@ -218,7 +217,7 @@ var HelloWorldLayer = cc.Layer.extend({
             findBestMove: function () {
                 var bestMove = null;
                 var bestValue = -Infinity;
-                var depthLimit = 5; // You can adjust this value
+                var depthLimit = 5; 
             
                 for (var y = 0; y < 3; y++) {
                     for (var x = 0; x < 3; x++) {
@@ -243,7 +242,7 @@ var HelloWorldLayer = cc.Layer.extend({
                 }
             
                 var originalValue = this.grid[move.y][move.x] ? this.grid[move.y][move.x].value : null;
-                this.grid[move.y][move.x] = { team: isMaximizing ? 'red' : 'blue', value: 3 }; // Assume max value for simplicity
+                this.grid[move.y][move.x] = { team: isMaximizing ? 'red' : 'blue', value: 3 }; 
             
                 var score = this.evaluateBoard();
                 this.grid[move.y][move.x] = originalValue !== null ? { team: isMaximizing ? 'red' : 'blue', value: originalValue } : null;
@@ -276,7 +275,7 @@ var HelloWorldLayer = cc.Layer.extend({
             },
             
             evaluateBoard: function () {
-                // Check rows, columns, and diagonals for win conditions and piece values
+              
                 var score = 0;
                 for (var i = 0; i < 3; i++) {
                     score += this.evaluateLine(this.grid[i][0], this.grid[i][1], this.grid[i][2]);
@@ -291,17 +290,17 @@ var HelloWorldLayer = cc.Layer.extend({
             evaluateLine: function (cell1, cell2, cell3) {
                 var score = 0;
             
-                // Line with all red (AI)
+                
                 if (cell1 && cell1.team === 'red' && cell2 && cell2.team === 'red' && cell3 && cell3.team === 'red') {
                     score += 10;
                 }
             
-                // Line with all blue (Player)
+              
                 if (cell1 && cell1.team === 'blue' && cell2 && cell2.team === 'blue' && cell3 && cell3.team === 'blue') {
                     score -= 10;
                 }
             
-                // Evaluate individual cells
+               
                 var cells = [cell1, cell2, cell3];
                 for (var cell of cells) {
                     if (cell && cell.team === 'red') {
@@ -362,7 +361,7 @@ var HelloWorldLayer = cc.Layer.extend({
                 drawLayer.addChild(label);
                 this.addChild(drawLayer);
         
-                // Restart the game after 3 seconds
+             
                 this.scheduleOnce(this.restartGame, 3);
             },
         
